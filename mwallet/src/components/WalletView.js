@@ -15,15 +15,23 @@ import { useNavigate } from "react-router-dom";
 import logo from "../noImg.png";
 import axios from "axios";
 import { CHAINS_CONFIG } from "../chains";
-import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction, Keypair, TransactionMessage, VersionedTransaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { QRCodeCanvas } from "qrcode.react";
+import {
+  Connection,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  SystemProgram,
+  Transaction,
+  Keypair,
+  TransactionMessage,
+  VersionedTransaction,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 import bs58 from "bs58";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSyncAlt } from "@fortawesome/free-solid-svg-icons";
 import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
-import { Modal } from "react-bootstrap";
 import TwoFactorAuth from "./TwoFactorAuth";
-// import speakeasy from "speakeasy"
-// import base32 from "thirty-two";
 
 function WalletView({
   wallet,
@@ -38,23 +46,50 @@ function WalletView({
   const [nfts, setNfts] = useState(null);
   const [balance, setBalance] = useState(0);
   const [fetching, setFetching] = useState(true);
-  const [amountToSend, setAmountToSend] = useState('1');
-  const [sendToAddress, setSendToAddress] = useState('DFfmB7PUQ2xdCto5XgWHSkCZGPUDsLTjXG5hgp8RQj39');
+  const [amountToSend, setAmountToSend] = useState("");
+  const [sendToAddress, setSendToAddress] = useState("");
   const [processing, setProcessing] = useState(false);
   const [hash, setHash] = useState(null);
-  const [qrCodeUrl, setQrCodeUrl] = useState(null); // Store the QR code URL
-  const [twoFaToken, setTwoFaToken] = useState(""); // Store the 2FA token input
-  const [show2FA, setShow2FA] = useState(false); // Add missing state for 2FA
+  const [qrCodeUrl, setQrCodeUrl] = useState(null);
+  const [twoFaToken, setTwoFaToken] = useState("");
+  const [show2FA, setShow2FA] = useState(false);
 
-
-  const [expandedTransaction, setExpandedTransaction] = useState(null); // State to track the expanded transaction
+  const [expandedTransaction, setExpandedTransaction] = useState(null);
 
   const transactionHistory = JSON.parse(localStorage.getItem(wallet)) || [];
+
+  //password part
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [storedPassword, setStoredPassword] = useState(localStorage.getItem("walletPassword") || "");
+  const [enteredPassword, setEnteredPassword] = useState("");
+
+
+
 
   const handleItemClick = (index) => {
     setExpandedTransaction(expandedTransaction === index ? null : index);
   };
 
+  //password part   
+  const verifyPasswordAndSend = async () => {
+    if (enteredPassword === storedPassword) {
+      await sendTransaction(sendToAddress, amountToSend);
+    } else {
+      message.error("Incorrect password");
+    }
+  };
+
+  const savePassword = () => {
+    if (password === confirmPassword) {
+      localStorage.setItem("walletPassword", password);
+      setStoredPassword(password);
+      message.success("Password set successfully");
+    } else {
+      message.error("Passwords do not match");
+    }
+  };
+  // password part complete
 
   const items = [
     {
@@ -89,42 +124,41 @@ function WalletView({
           ) : (
             <>
               <span>You seem to not have any tokens yet</span>
-
             </>
           )}
         </>
       ),
     },
-    {
-      key: "1",
-      label: `NFTs`,
-      children: (
-        <>
-          {nfts ? (
-            <>
-              {nfts.map((e, i) => {
-                return (
-                  <>
-                    {e && (
-                      <img
-                        key={i}
-                        className="nftImage"
-                        alt="nftImage"
-                        src={e}
-                      />
-                    )}
-                  </>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              <span>You seem to not have any NFTs yet</span>
-            </>
-          )}
-        </>
-      ),
-    },
+    // {
+    //   key: "1",
+    //   label: `NFTs`,
+    //   children: (
+    //     <>
+    //       {nfts ? (
+    //         <>
+    //           {nfts.map((e, i) => {
+    //             return (
+    //               <>
+    //                 {e && (
+    //                   <img
+    //                     key={i}
+    //                     className="nftImage"
+    //                     alt="nftImage"
+    //                     src={e}
+    //                   />
+    //                 )}
+    //               </>
+    //             );
+    //           })}
+    //         </>
+    //       ) : (
+    //         <>
+    //           <span>You seem to not have any NFTs yet</span>
+    //         </>
+    //       )}
+    //     </>
+    //   ),
+    // },
     {
       key: "2",
       label: `Transfer`,
@@ -135,7 +169,11 @@ function WalletView({
             {balance} {"SOL"}
             <FontAwesomeIcon
               icon={faSyncAlt}
-              style={{ marginLeft: "10px", cursor: "pointer", fontSize: "16px" }}
+              style={{
+                marginLeft: "10px",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
               onClick={getAccountTokens}
             />
           </h1>
@@ -159,7 +197,7 @@ function WalletView({
             style={{ width: "100%", marginTop: "20px", marginBottom: "20px" }}
             type="primary"
             onClick={() => initiate2FA()}
-            disabled={processing}
+            disabled={processing || !sendToAddress}
           >
             Send Tokens
           </Button>
@@ -169,6 +207,26 @@ function WalletView({
               processing={processing}
             />
           )}
+
+          {/* password part */}
+           <div className="sendRow">
+            <p style={{ width: "90px", textAlign: "left" }}> Password:</p>
+            <Input.Password
+              value={enteredPassword}
+              onChange={(e) => setEnteredPassword(e.target.value)}
+              placeholder="Enter password"
+            />
+          </div>
+          <Button
+            style={{ width: "100%", marginTop: "20px" }}
+            type="primary"
+            onClick={verifyPasswordAndSend}
+            disabled={processing || !sendToAddress}
+          >
+            Send Tokens
+          </Button>
+           {/* password part ends */}
+
           {processing && (
             <>
               <Spin />
@@ -198,8 +256,11 @@ function WalletView({
                     <span>
                       <FontAwesomeIcon
                         icon={tx.type == "Received" ? faArrowDown : faArrowUp}
-                        className={tx.type == "Received" ? "received-icon" : "sent-icon"}
+                        className={
+                          tx.type == "Received" ? "received-icon" : "sent-icon"
+                        }
                       />
+                      <p className="date-time">{tx.dateTime}</p>
                     </span>
                     <span>{tx.amount} SOL</span>
                     <span>{tx.amount > 0 ? "Sent" : "Received"}</span>
@@ -207,9 +268,28 @@ function WalletView({
 
                   {expandedTransaction === index && (
                     <div className="transaction-details-dropdown">
-                      <p><strong>To Address:</strong> {tx.toAddress}</p>
-                      <p><strong>Transaction Hash:</strong> {tx.signature}</p>
-                      <p><strong>Date & Time:</strong> <br />{tx.dateTime}</p>
+                      <p>
+                        <strong>To Address:</strong> {tx.toAddress}
+                      </p>
+                      <Tooltip
+                        title={
+                          <a
+                            href="https://explorer.solana.com/tx/3ovP5vd839dWv6S9EXihFSR5EyTyW6gkey921dC6VY1ebDcNibc8pB3NSU8BSwCxh5LsWgNjuEo9uwCVrmbRFRrY?cluster=devnet"
+                            target="_blank"
+                          >
+                            View on Solana Explorer
+                          </a>
+                        }
+                      >
+                        <p>
+                          <strong>Transaction Hash:</strong> {tx.signature}
+                        </p>
+                      </Tooltip>
+
+                      <p>
+                        <strong>Date & Time:</strong> <br />
+                        {tx.dateTime}
+                      </p>
                     </div>
                   )}
                 </li>
@@ -236,11 +316,47 @@ function WalletView({
         </>
       ),
     },
+    {
+      key: "5",
+      label: `Set Password`,
+      children: (
+        <>
+          <h3>Set Transaction Password</h3>
+          <div className="passwordRow">
+            <p style={{ width: "150px", textAlign: "left" }}>Password:</p>
+            <Input.Password
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Set a new password"
+            />
+          </div>
+          <div className="passwordRow">
+            <p style={{ width: "150px", textAlign: "left" }}>Confirm Password:</p>
+            <Input.Password
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm your password"
+            />
+          </div>
+          <Button
+            style={{ width: "100%", marginTop: "20px" }}
+            type="primary"
+            onClick={savePassword}
+            disabled={!password || password !== confirmPassword}
+          >
+            Set Password
+          </Button>
+        </>
+      ),
+    },
   ];
 
   async function generate2FA() {
     try {
-      const response = await axios.post("http://localhost:3001/auth/generate-2fa", { userId });
+      const response = await axios.post(
+        "http://localhost:3001/auth/generate-2fa",
+        { userId: wallet }
+      );
       setQrCodeUrl(response.data.qrCodeUrl);
       console.log("2FA QR Code URL:", response.data.qrCodeUrl);
     } catch (error) {
@@ -258,16 +374,17 @@ function WalletView({
       token: otp,
     };
     console.log("Sending 2FA verification payload:", payload);
-  
+
     setProcessing(true);
-  
+
     try {
       const res = await axios.post("http://localhost:3001/verify-2fa", payload);
       console.log("2FA verification response:", res.data);
-  
+
       if (res.data.valid) {
         console.log("2FA verification successful");
-        await sendTransaction(sendToAddress, amountToSend);
+        message.success("2FA verification successful, Now Enter Password");
+        await verifyPasswordAndSend;
       } else {
         console.error("Invalid 2FA code");
         message.error("Invalid 2FA code. Please try again.");
@@ -286,7 +403,6 @@ function WalletView({
     }
   }
 
-
   async function sendTransaction(to, amount) {
     const chain = CHAINS_CONFIG[selectedChain];
     const connection = new Connection(chain.rpcUrl, "confirmed");
@@ -300,11 +416,15 @@ function WalletView({
         toPubkey: toPublicKey,
         lamports: amount * LAMPORTS_PER_SOL,
       })
-    )
+    );
 
     setProcessing(true);
     try {
-      const signature = await sendAndConfirmTransaction(connection, transaction, [fromWallet]);
+      const signature = await sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [fromWallet]
+      );
 
       setHash(signature);
       console.log("Transaction signature:", signature);
@@ -312,11 +432,11 @@ function WalletView({
       function getCurrentDateTime() {
         const currentDateTime = new Date();
         const year = currentDateTime.getFullYear();
-        const month = String(currentDateTime.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-        const day = String(currentDateTime.getDate()).padStart(2, '0');
-        const hours = String(currentDateTime.getHours()).padStart(2, '0');
-        const minutes = String(currentDateTime.getMinutes()).padStart(2, '0');
-        const seconds = String(currentDateTime.getSeconds()).padStart(2, '0');
+        const month = String(currentDateTime.getMonth() + 1).padStart(2, "0"); // Months are zero-based
+        const day = String(currentDateTime.getDate()).padStart(2, "0");
+        const hours = String(currentDateTime.getHours()).padStart(2, "0");
+        const minutes = String(currentDateTime.getMinutes()).padStart(2, "0");
+        const seconds = String(currentDateTime.getSeconds()).padStart(2, "0");
         const formattedDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         return formattedDateTime;
       }
@@ -327,16 +447,20 @@ function WalletView({
         token: "SOL",
         type: "Sent",
         dateTime: getCurrentDateTime(),
-      }
+      };
       const walletAddress = wallet;
-      const existingTransactions = JSON.parse(localStorage.getItem(walletAddress)) || [];
+      const existingTransactions =
+        JSON.parse(localStorage.getItem(walletAddress)) || [];
       existingTransactions.push(transactionData);
       localStorage.setItem(walletAddress, JSON.stringify(existingTransactions));
 
-      const { value: status } = await connection.getSignatureStatuses([signature]);
+      const { value: status } = await connection.getSignatureStatuses([
+        signature,
+      ]);
       const confirmedSignature = status[0];
       console.log(confirmedSignature);
       if (confirmedSignature.confirmationStatus === "confirmed") {
+        message.success("Transaction Sent Successfully!");
         setProcessing(false);
         setAmountToSend(null);
         setSendToAddress(null);
@@ -354,7 +478,6 @@ function WalletView({
       setSendToAddress(null);
       setShow2FA(false);
     }
-
   }
 
   async function getAccountTokens() {
@@ -414,7 +537,14 @@ function WalletView({
           <LogoutOutlined />
         </div>
         <div className="walletName">Wallet</div>
-        <Tooltip title={wallet}>
+        <Tooltip
+          title={
+            <div>
+              <div>{wallet}</div>
+              <QRCodeCanvas value={wallet} size={128} className="qrcode" />
+            </div>
+          }
+        >
           <div>
             {wallet.slice(0, 4)}...{wallet.slice(38)}
           </div>

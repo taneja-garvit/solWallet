@@ -1,7 +1,7 @@
 const express = require("express");
 const Moralis = require("moralis").default;
-const speakeasy = require("speakeasy"); // For 2FA
-const qrcode = require("qrcode"); // For generating QR code
+const speakeasy = require("speakeasy"); 
+const qrcode = require("qrcode"); 
 const cors = require("cors");
 require("dotenv").config();
 const port = 3001;
@@ -30,14 +30,12 @@ app.post("/auth/generate-2fa", async (req, res) => {
   return res.status(200).json({ qrCodeUrl });
 });
 
-// Route to verify the 2FA token
 app.post("/verify-2fa", (req, res) => {
   const { userId, token } = req.body;
 
   console.log(`Verifying 2FA for user: ${userId}`);
   console.log(`Received token: ${token}`);
 
-  // Retrieve the user's secret (from memory or database)
   const userSecret = userSecrets[userId];
 
   if (!userSecret) {
@@ -49,7 +47,6 @@ app.post("/verify-2fa", (req, res) => {
 
   console.log(`User secret found for ${userId}`);
 
-  // Verify the token
   try {
     const isValid = speakeasy.totp.verify({
       secret: userSecret.base32,
@@ -72,7 +69,6 @@ app.post("/verify-2fa", (req, res) => {
 });
 
 
-// Moralis integration for Solana
 app.get("/getTokens", async (req, res) => {
   const { userAddress, network } = req.query;
 
@@ -95,7 +91,6 @@ app.get("/getTokens", async (req, res) => {
   return res.status(200).json(jsonResponse);
 });
 
-// Start Moralis and the Express server
 Moralis.start({
   apiKey: process.env.MORALIS_KEY,
 }).then(() => {

@@ -1,12 +1,13 @@
 import "./App.css";
 import { useState } from "react";
-import logo from "./moralisLogo.svg";
 import { Select } from "antd";
 import { Routes, Route } from "react-router-dom";
 import Home from "./components/Home";
 import CreateAccount from "./components/CreateAccount";
 import RecoverAccount from "./components/RecoverAccount";
 import WalletView from "./components/WalletView";
+import SignInPwd from "./components/signInPwd";
+import logo from "./images/wallet.jpg"
 
 function App() {
   const [wallet, setWallet] = useState(null);
@@ -64,6 +65,15 @@ function App() {
             path="/yourwallet"
             element={
               <CreateAccount
+                setSeedPhrase={setSeedPhrase}
+                setWallet={setWallet}
+              />
+            }
+          />
+          <Route
+            path="/signin"
+            element={
+              <SignInPwd
                 setSeedPhrase={setSeedPhrase}
                 setWallet={setWallet}
               />

@@ -2,6 +2,7 @@ import React from "react";
 import mwallet from "../mwallet.png";
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
+import img from "../images/wallet.jpg"
 
 
 
@@ -13,7 +14,7 @@ function Home() {
   return (
     <>
       <div className="content">
-        <img src={mwallet} alt="logo" className="frontPageLogo" />
+        <img src="" alt="logo" className="frontPageLogo" />
         <h2> Hey There 👋 </h2>
         <h4 className="h4"> Welcome to your Web3 Wallet</h4>
         <Button
@@ -23,6 +24,7 @@ function Home() {
         >
           Create A Wallet
         </Button>
+        
         <Button
           onClick={() => navigate("/recover")}
           className="frontPageButton"
@@ -30,12 +32,15 @@ function Home() {
         >
           Sign In With Seed Phrase
         </Button>
-        <p className="frontPageBottom">
-          Find Alt Coin Gems:{" "}
-          <a href="https://moralismoney.com/" target="_blank" rel="noreferrer">
-            money.moralis.io
-          </a>
-        </p>
+        
+        <Button
+          onClick={() => navigate("/signin")}
+          className="frontPageButton"
+          type="primary"
+        >
+          Sign in with Password
+        </Button>
+        
       </div>
     </>
   );
