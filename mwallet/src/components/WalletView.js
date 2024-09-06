@@ -53,6 +53,7 @@ function WalletView({
   const [qrCodeUrl, setQrCodeUrl] = useState(null);
   const [twoFaToken, setTwoFaToken] = useState("");
   const [show2FA, setShow2FA] = useState(false);
+  const [flag,setflag] = useState(false);
 
   const [expandedTransaction, setExpandedTransaction] = useState(null);
 
@@ -73,10 +74,10 @@ function WalletView({
 
   //password part   
   const verifyPasswordAndSend = async () => {
-    if (enteredPassword === storedPassword) {
+    if ((enteredPassword === storedPassword) && (flag)) {
       await sendTransaction(sendToAddress, amountToSend);
     } else {
-      message.error("Incorrect password");
+      message.error("Incorrect password or 2FA code");
     }
   };
 
@@ -384,6 +385,7 @@ function WalletView({
       if (res.data.valid) {
         console.log("2FA verification successful");
         message.success("2FA verification successful, Now Enter Password");
+        setflag(true)
         await verifyPasswordAndSend;
       } else {
         console.error("Invalid 2FA code");
