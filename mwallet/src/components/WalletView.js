@@ -51,9 +51,9 @@ function WalletView({
   const [processing, setProcessing] = useState(false);
   const [hash, setHash] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState(null);
-  const [twoFaToken, setTwoFaToken] = useState("");
+  const [TwoFaSetup, setTwoFaSetup] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [flag,setflag] = useState(false);
+  const [flag, setflag] = useState(false);
 
   const [expandedTransaction, setExpandedTransaction] = useState(null);
 
@@ -62,19 +62,18 @@ function WalletView({
   //password part
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [storedPassword, setStoredPassword] = useState(localStorage.getItem("walletPassword") || "");
+  const [storedPassword, setStoredPassword] = useState(
+    localStorage.getItem("walletPassword") || ""
+  );
   const [enteredPassword, setEnteredPassword] = useState("");
-
-
-
 
   const handleItemClick = (index) => {
     setExpandedTransaction(expandedTransaction === index ? null : index);
   };
 
-  //password part   
+  //password part
   const verifyPasswordAndSend = async () => {
-    if ((enteredPassword === storedPassword) && (flag)) {
+    if (enteredPassword === storedPassword && flag) {
       await sendTransaction(sendToAddress, amountToSend);
     } else {
       message.error("Incorrect password or 2FA code");
@@ -113,7 +112,7 @@ function WalletView({
                     />
                     <div>
                       {(
-                        Number(item.balance) /
+                        Number(item.amountRaw) /
                         10 ** Number(item.decimals)
                       ).toFixed(2)}{" "}
                       Tokens
@@ -197,7 +196,13 @@ function WalletView({
           <Button
             style={{ width: "100%", marginTop: "20px", marginBottom: "20px" }}
             type="primary"
-            onClick={() => initiate2FA()}
+            onClick={() => {
+              if (TwoFaSetup) {
+                initiate2FA();
+              } else {
+                message.error("First setup 2FA");
+              }
+            }}
             disabled={processing || !sendToAddress}
           >
             Send Tokens
@@ -210,8 +215,8 @@ function WalletView({
           )}
 
           {/* password part */}
-           <div className="sendRow">
-            <p style={{ width: "90px", textAlign: "left" }}> Password:</p>
+          <div className="sendRow">
+            <p style={{ width: "90px", textAlign: "left" }}> PIN:</p>
             <Input.Password
               value={enteredPassword}
               onChange={(e) => setEnteredPassword(e.target.value)}
@@ -226,7 +231,7 @@ function WalletView({
           >
             Send Tokens
           </Button>
-           {/* password part ends */}
+          {/* password part ends */}
 
           {processing && (
             <>
@@ -243,7 +248,7 @@ function WalletView({
     },
     {
       key: "3",
-      label: `History`,
+      label: `Tokens Sent`,
       children: (
         <>
           {transactionHistory.length > 0 ? (
@@ -275,7 +280,8 @@ function WalletView({
                       <Tooltip
                         title={
                           <a
-                            href="https://explorer.solana.com/tx/3ovP5vd839dWv6S9EXihFSR5EyTyW6gkey921dC6VY1ebDcNibc8pB3NSU8BSwCxh5LsWgNjuEo9uwCVrmbRFRrY?cluster=devnet"
+                          href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
+
                             target="_blank"
                           >
                             View on Solana Explorer
@@ -304,9 +310,10 @@ function WalletView({
     },
     {
       key: "4",
-      label: `2FA Setup`,
+      label: `Security`,
       children: (
         <>
+          <span>Step 1:-</span>{" "}
           <Button onClick={generate2FA}>Generate 2FA QR Code</Button>
           {qrCodeUrl && (
             <>
@@ -314,42 +321,48 @@ function WalletView({
               <img src={qrCodeUrl} alt="2FA QR Code" />
             </>
           )}
+          <>
+            <h3>
+              {" "}
+              <span>Step 2:-</span> Set Transaction PIN
+            </h3>
+            <div className="passwordRow">
+              <p style={{ width: "150px", textAlign: "left" }}>PIN:</p>
+              <Input.Password
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Set a new password"
+              />
+            </div>
+            <div className="passwordRow">
+              <p style={{ width: "150px", textAlign: "left" }}>
+                Confirm PIN:
+              </p>
+              <Input.Password
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your password"
+              />
+            </div>
+            <Button
+              style={{ width: "100%", marginTop: "20px" }}
+              type="primary"
+              onClick={savePassword}
+              disabled={!password || password !== confirmPassword}
+            >
+              Set Password
+            </Button>
+          </>
         </>
       ),
     },
-    {
-      key: "5",
-      label: `Set Password`,
-      children: (
-        <>
-          <h3>Set Transaction Password</h3>
-          <div className="passwordRow">
-            <p style={{ width: "150px", textAlign: "left" }}>Password:</p>
-            <Input.Password
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Set a new password"
-            />
-          </div>
-          <div className="passwordRow">
-            <p style={{ width: "150px", textAlign: "left" }}>Confirm Password:</p>
-            <Input.Password
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your password"
-            />
-          </div>
-          <Button
-            style={{ width: "100%", marginTop: "20px" }}
-            type="primary"
-            onClick={savePassword}
-            disabled={!password || password !== confirmPassword}
-          >
-            Set Password
-          </Button>
-        </>
-      ),
-    },
+    // {
+    //   key: "5",
+    //   label: `Set Password`,
+    //   children: (
+
+    //   ),
+    // },
   ];
 
   async function generate2FA() {
@@ -359,6 +372,7 @@ function WalletView({
         { userId: wallet }
       );
       setQrCodeUrl(response.data.qrCodeUrl);
+      setTwoFaSetup(true);
       console.log("2FA QR Code URL:", response.data.qrCodeUrl);
     } catch (error) {
       console.error("Error generating 2FA QR code:", error);
@@ -367,6 +381,7 @@ function WalletView({
 
   async function initiate2FA() {
     setShow2FA(true);
+    setTwoFaSetup(true);
   }
 
   async function handle2FAVerification(otp) {
@@ -385,7 +400,7 @@ function WalletView({
       if (res.data.valid) {
         console.log("2FA verification successful");
         message.success("2FA verification successful, Now Enter Password");
-        setflag(true)
+        setflag(true);
         await verifyPasswordAndSend;
       } else {
         console.error("Invalid 2FA code");
@@ -540,10 +555,14 @@ function WalletView({
         </div>
         <div className="walletName">Wallet</div>
         <Tooltip
+        className="tools"
           title={
             <div>
-              <div>{wallet}</div>
+              <div>Wallet QR code: </div>
               <QRCodeCanvas value={wallet} size={128} className="qrcode" />
+              <div>Wallet: {wallet}</div>
+              <div>Network: {selectedChain}</div>
+              
             </div>
           }
         >
