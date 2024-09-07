@@ -29,7 +29,7 @@ import {
 } from "@solana/web3.js";
 import bs58 from "bs58";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSyncAlt } from "@fortawesome/free-solid-svg-icons";
+import { faL, faSyncAlt } from "@fortawesome/free-solid-svg-icons";
 import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
 import TwoFactorAuth from "./TwoFactorAuth";
 
@@ -54,7 +54,7 @@ function WalletView({
   const [TwoFaSetup, setTwoFaSetup] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [flag, setflag] = useState(false);
-
+  const [showPin, setshowPin] = useState(false);
   const [expandedTransaction, setExpandedTransaction] = useState(null);
 
   const transactionHistory = JSON.parse(localStorage.getItem(wallet)) || [];
@@ -199,6 +199,7 @@ function WalletView({
             onClick={() => {
               if (TwoFaSetup) {
                 initiate2FA();
+                setshowPin(true);
               } else {
                 message.error("First setup 2FA");
               }
@@ -215,22 +216,26 @@ function WalletView({
           )}
 
           {/* password part */}
-          <div className="sendRow">
-            <p style={{ width: "90px", textAlign: "left" }}> PIN:</p>
-            <Input.Password
-              value={enteredPassword}
-              onChange={(e) => setEnteredPassword(e.target.value)}
-              placeholder="Enter password"
-            />
-          </div>
-          <Button
-            style={{ width: "100%", marginTop: "20px" }}
-            type="primary"
-            onClick={verifyPasswordAndSend}
-            disabled={processing || !sendToAddress}
-          >
-            Send Tokens
-          </Button>
+          {showPin && (
+            <>
+              <div className="sendRow">
+                <p style={{ width: "90px", textAlign: "left" }}> PIN:</p>
+                <Input.Password
+                  value={enteredPassword}
+                  onChange={(e) => setEnteredPassword(e.target.value)}
+                  placeholder="Enter PIN"
+                />
+              </div>
+              <Button
+                style={{ width: "100%", marginTop: "20px" }}
+                type="primary"
+                onClick={verifyPasswordAndSend}
+                disabled={processing || !sendToAddress}
+              >
+                Send Tokens
+              </Button>
+            </>
+          )}
           {/* password part ends */}
 
           {processing && (
@@ -280,8 +285,7 @@ function WalletView({
                       <Tooltip
                         title={
                           <a
-                          href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
-
+                            href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
                             target="_blank"
                           >
                             View on Solana Explorer
@@ -335,9 +339,7 @@ function WalletView({
               />
             </div>
             <div className="passwordRow">
-              <p style={{ width: "150px", textAlign: "left" }}>
-                Confirm PIN:
-              </p>
+              <p style={{ width: "150px", textAlign: "left" }}>Confirm PIN:</p>
               <Input.Password
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -555,14 +557,13 @@ function WalletView({
         </div>
         <div className="walletName">Wallet</div>
         <Tooltip
-        className="tools"
+          className="tools"
           title={
             <div>
               <div>Wallet QR code: </div>
               <QRCodeCanvas value={wallet} size={128} className="qrcode" />
               <div>Wallet: {wallet}</div>
               <div>Network: {selectedChain}</div>
-              
             </div>
           }
         >

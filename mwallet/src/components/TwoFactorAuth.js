@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Input, Button } from "antd";
 
-function TwoFactorAuth({ onVerify, processing }) {
+function TwoFactorAuth({ onVerify, processing}) {
   const [otp, setotp] = useState("");
 
   const handleVerify = () => {
@@ -17,7 +17,9 @@ function TwoFactorAuth({ onVerify, processing }) {
       />
       <Button
         type="primary"
-        onClick={handleVerify}
+        onClick={() => {
+          handleVerify();
+        }}
         disabled={processing || !otp}
         style={{ marginTop: "10px", width: "100%" }}
       >
