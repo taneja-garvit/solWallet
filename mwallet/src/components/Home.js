@@ -14,7 +14,7 @@ function Home() {
   return (
     <>
       <div className="content">
-        <img src="" alt="logo" className="frontPageLogo" />
+        <img src={img} alt="logo" className="frontPageLogo" />
         <h2> Hey There 👋 </h2>
         <h4 className="h4"> Welcome to your Web3 Wallet</h4>
         <Button
