@@ -10,7 +10,7 @@ import {
   Button,
   message,
 } from "antd";
-import { LogoutOutlined } from "@ant-design/icons";
+import { FileAddOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import logo from "../noImg.png";
 import axios from "axios";
@@ -51,45 +51,58 @@ function WalletView({
   const [processing, setProcessing] = useState(false);
   const [hash, setHash] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState(null);
-  const [TwoFaSetup, setTwoFaSetup] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [flag, setflag] = useState(false);
   const [showPin, setshowPin] = useState(false);
   const [expandedTransaction, setExpandedTransaction] = useState(null);
+  const [isVisiblePin, setIsVisiblePin] = useState(false);
 
-  const transactionHistory = JSON.parse(localStorage.getItem(wallet)) || [];
-
-  //password part
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [storedPassword, setStoredPassword] = useState(
-    localStorage.getItem("walletPassword") || ""
-  );
+  const [storedPassword, setStoredPassword] = useState("");
   const [enteredPassword, setEnteredPassword] = useState("");
+
+  useEffect(() => {
+    const pinSetup = JSON.parse(localStorage.getItem("pinSetup") || "{}");
+    setStoredPassword(pinSetup[wallet] || "");
+  }, [wallet]);
+
+  const transactionHistory = JSON.parse(localStorage.getItem(wallet) || "[]");
 
   const handleItemClick = (index) => {
     setExpandedTransaction(expandedTransaction === index ? null : index);
   };
 
-  //password part
   const verifyPasswordAndSend = async () => {
     if (enteredPassword === storedPassword && flag) {
       await sendTransaction(sendToAddress, amountToSend);
     } else {
-      message.error("Incorrect password or 2FA code");
+      message.error("Incorrect password");
     }
   };
 
   const savePassword = () => {
     if (password === confirmPassword) {
-      localStorage.setItem("walletPassword", password);
+      let currentSetup = JSON.parse(localStorage.getItem("pinSetup") || "{}");
+      currentSetup[wallet] = password;
+      localStorage.setItem("pinSetup", JSON.stringify(currentSetup));
       setStoredPassword(password);
       message.success("Password set successfully");
+      setIsVisiblePin(false);
+      setQrCodeUrl(null);
     } else {
       message.error("Passwords do not match");
     }
   };
-  // password part complete
+
+  const generatePin = () => {
+    const setup = JSON.parse(localStorage.getItem("pinSetup") || "{}");
+    if (setup[wallet]) {
+      message.error("PIN already set!");
+    } else {
+      setIsVisiblePin(true);
+    }
+  };
 
   const items = [
     {
@@ -197,12 +210,14 @@ function WalletView({
             style={{ width: "100%", marginTop: "20px", marginBottom: "20px" }}
             type="primary"
             onClick={() => {
-              if (TwoFaSetup) {
+              const setup = JSON.parse(localStorage.getItem("TwoFaSetupz"));
+              const setupPin = JSON.parse(localStorage.getItem("pinSetup"));
+              if (setup[wallet] && setupPin[wallet]) {
                 initiate2FA();
-                setshowPin(true);
               } else {
-                message.error("First setup 2FA");
+                message.error("First setup 2FA and PIN both!");
               }
+
             }}
             disabled={processing || !sendToAddress}
           >
@@ -326,64 +341,67 @@ function WalletView({
             </>
           )}
           <>
-            <h3>
+            <p>
               {" "}
-              <span>Step 2:-</span> Set Transaction PIN
-            </h3>
-            <div className="passwordRow">
-              <p style={{ width: "150px", textAlign: "left" }}>PIN:</p>
-              <Input.Password
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Set a new password"
-              />
+              <span>Step 2:-</span> <Button onClick={generatePin}>Setup Transaction PIN</Button>
+            </p>
+            {isVisiblePin &&(
+              <div className="setupPin">
+              <div className="passwordRow">
+                <p style={{ width: "150px", textAlign: "left" }}>PIN:</p>
+                <Input.Password
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Set a new password"
+                />
+              </div>
+              <div className="passwordRow">
+                <p style={{ width: "150px", textAlign: "left" }}>Confirm PIN:</p>
+                <Input.Password
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                />
+              </div>
+              <Button
+                style={{ width: "100%", marginTop: "20px" }}
+                type="primary"
+                onClick={savePassword}
+                disabled={!password || password !== confirmPassword}
+              >
+                Set Password
+              </Button>
             </div>
-            <div className="passwordRow">
-              <p style={{ width: "150px", textAlign: "left" }}>Confirm PIN:</p>
-              <Input.Password
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-              />
-            </div>
-            <Button
-              style={{ width: "100%", marginTop: "20px" }}
-              type="primary"
-              onClick={savePassword}
-              disabled={!password || password !== confirmPassword}
-            >
-              Set Password
-            </Button>
+            )}
+
           </>
         </>
       ),
     },
-    // {
-    //   key: "5",
-    //   label: `Set Password`,
-    //   children: (
-
-    //   ),
-    // },
   ];
-
   async function generate2FA() {
-    try {
-      const response = await axios.post(
-        "http://localhost:3001/auth/generate-2fa",
-        { userId: wallet }
-      );
-      setQrCodeUrl(response.data.qrCodeUrl);
-      setTwoFaSetup(true);
-      console.log("2FA QR Code URL:", response.data.qrCodeUrl);
-    } catch (error) {
-      console.error("Error generating 2FA QR code:", error);
+    const setup = JSON.parse(localStorage.getItem("TwoFaSetupz") || "{}");
+    if (setup[wallet]) {
+      message.error("2FA and PIN already set!");
+    } else {
+      try {
+        const response = await axios.post(
+          `${process.env.REACT_APP_SERVER_URL}/auth/generate-2fa`,
+          { userId: wallet }
+        );
+        setQrCodeUrl(response.data.qrCodeUrl);
+        let currentSetup = JSON.parse(localStorage.getItem("TwoFaSetupz") || "{}");
+        currentSetup[wallet] = true;
+        localStorage.setItem("TwoFaSetupz", JSON.stringify(currentSetup));
+        console.log("2FA QR Code URL:", response.data.qrCodeUrl);
+      } catch (error) {
+        console.error("Error generating 2FA QR code:", error);
+      }
     }
   }
 
   async function initiate2FA() {
     setShow2FA(true);
-    setTwoFaSetup(true);
   }
 
   async function handle2FAVerification(otp) {
@@ -396,14 +414,15 @@ function WalletView({
     setProcessing(true);
 
     try {
-      const res = await axios.post("http://localhost:3001/verify-2fa", payload);
+      const res = await axios.post(`${process.env.REACT_APP_SERVER_URL}/verify-2fa`, payload);
       console.log("2FA verification response:", res.data);
 
       if (res.data.valid) {
         console.log("2FA verification successful");
         message.success("2FA verification successful, Now Enter Password");
         setflag(true);
-        await verifyPasswordAndSend;
+        setshowPin(true);
+        await verifyPasswordAndSend();
       } else {
         console.error("Invalid 2FA code");
         message.error("Invalid 2FA code. Please try again.");
@@ -483,8 +502,9 @@ function WalletView({
         setProcessing(false);
         setAmountToSend(null);
         setSendToAddress(null);
+        setEnteredPassword("");
         setShow2FA(false);
-
+        setshowPin(false);
         getAccountTokens();
       } else {
         console.log("Transaction failed to finalize");
@@ -502,7 +522,7 @@ function WalletView({
   async function getAccountTokens() {
     setFetching(true);
     console.log(wallet, selectedChain);
-    const res = await axios.get(`http://localhost:3001/getTokens`, {
+    const res = await axios.get(`${process.env.REACT_APP_SERVER_URL}/getTokens`, {
       params: {
         userAddress: wallet,
         network: selectedChain,
@@ -559,11 +579,14 @@ function WalletView({
         <Tooltip
           className="tools"
           title={
-            <div>
-              <div>Wallet QR code: </div>
+            <div className="toolTip">
+              <div className="title">Receive Crypto</div>
               <QRCodeCanvas value={wallet} size={128} className="qrcode" />
-              <div>Wallet: {wallet}</div>
-              <div>Network: {selectedChain}</div>
+              <div className="walletInfo">
+                <div className="walletLabel">Wallet Address: </div>
+                <div className="walletAddress">{wallet}</div>
+              </div>
+              <div className="networkInfo">Network: {selectedChain}</div>
             </div>
           }
         >
